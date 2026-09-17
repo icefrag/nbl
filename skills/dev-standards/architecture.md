@@ -79,6 +79,14 @@
 | **config模块** | 配置文件模块，包含所有运行时配置 |
 | **assembly模块** | 打包模块，定义部署包组装规则 |
 
+## api模块依赖隔离 (NON-NEGOTIABLE)
+
+- **禁止**微服务的 api 模块依赖任何其他微服务的 api 模块（如 `guozhi-teaching-api` 依赖 `guozhi-affairs-api`）
+- 原因：api 是对外契约，被 BFF 和其他服务的 app 模块引用；api 间互相依赖会把对方契约及其传递依赖拖给所有消费者，造成服务间耦合蔓延、发包连锁升级
+- 需要对方的数据结构：在本服务 api 内自行定义对应的 Req/Resp/Query 对象，不 import 对方 api 的类
+- 需要调用对方服务：由 app 模块依赖对方 api 走 Feign，api 模块不感知其他服务
+- 例外：公共框架包（framework）不属于微服务 api，可正常依赖
+
 ## 层间调用规范 (NON-NEGOTIABLE)
 
 - **禁止跨层调用**: Controller只能调用Service，Service只能调用Manager和Mapper
