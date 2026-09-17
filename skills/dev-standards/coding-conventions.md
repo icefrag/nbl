@@ -211,6 +211,18 @@ IPage<FormListResp> query(@RequestBody FormPageQuery query);
 - 统一使用`java.util.Date`，禁止String/LocalDateTime
 - `@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")`
 
+## Long序列化
+
+- Resp 对象中所有 `Long` 字段必须加 `@JsonSerialize(using = ToStringSerializer.class)`，以字符串形式返回给前端
+- 原因：雪花ID超过 JS `Number.MAX_SAFE_INTEGER`（2^53），前端按数字解析会精度丢失
+- `ToStringSerializer` 路径：`com.fasterxml.jackson.databind.ser.std.ToStringSerializer`
+
+```java
+@JsonSerialize(using = ToStringSerializer.class)
+@Schema(description = "任务日志 ID")
+private Long id;
+```
+
 ## Swagger注解
 
 - api模块：`@Tag`(接口级)、`@Operation`(方法级)、`@Parameter`(参数级)、`@Schema`(字段)
