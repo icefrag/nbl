@@ -6,7 +6,7 @@ description: >
   review package (diff + intent + test results) so it never forages for
   context. Use when executing a code review or pre-merge review, or when
   dispatching a review or re-review subagent. Triggers on "review", "代码审查",
-  "评审", "合并前审查". Review standards themselves follow the review skill.
+  "评审", "合并前审查". Review standards themselves follow the code-review skill.
 ---
 
 # Review Dispatch
@@ -17,7 +17,7 @@ Slow reviews are rarely the five-axis checklist's fault — the cost is the
 reviewer agent's cold-start foraging: deriving the review range with git,
 pulling the full diff, and crawling surrounding code file by file. This skill
 governs only **how a review is dispatched**. What to check, and how findings
-are phrased, comes from the [review](../review/SKILL.md) skill — read in its
+are phrased, comes from the [code-review](../code-review/SKILL.md) skill — read in its
 original wording, never paraphrased.
 
 Two dispatch principles:
@@ -30,7 +30,7 @@ Two dispatch principles:
 
 ## Step 1: Establish the Review Target
 
-Resolve the target exactly as the review skill's "Review Process" section
+Resolve the target exactly as the code-review skill's "Review Process" section
 specifies (upstream diff / base diff, plus uncommitted changes; no git — ask
 the user), then run `git diff --stat` to size it.
 
@@ -39,12 +39,12 @@ the user), then run `git diff --stat` to size it.
 **Inline review (no subagent)** — only when BOTH hold:
 
 - The change is small: ≤ ~200 changed lines ("reviewable in one sitting" per
-  the review skill's change sizing; `--stat` tells at a glance);
+  the code-review skill's change sizing; `--stat` tells at a glance);
 - This session is not the author of the code and not an SDD coordinator — no
   self-review blind spot, and no coordinator context that must be preserved
   for driving the work.
 
-Inline means walking the review skill's full process and producing the same
+Inline means walking the code-review skill's full process and producing the same
 severity labels (Critical / unprefixed Required / Nit / Optional / FYI) and
 file:line citations.
 
@@ -77,7 +77,7 @@ foraging:
 2. Intent: a one-sentence description, or a link to the plan/spec;
 3. Tests already run and their results (if none, run them first or say so).
 
-Also resolve the review skill's `SKILL.md` path at dispatch time and put it
+Also resolve the code-review skill's `SKILL.md` path at dispatch time and put it
 in the prompt — the reviewer reads the original standard from the file, not
 a paraphrase of it.
 
@@ -102,7 +102,7 @@ Subagent (general-purpose):
     <TEST_RESULTS>
 
     ## Review Standard
-    First read the review skill in full and follow it exactly:
+    First read the code-review skill in full and follow it exactly:
     <REVIEW_SKILL_PATH>
     Apply its five axes (correctness, readability, architecture, security,
     performance), its severity labels, and its verdict format. If the file
@@ -125,4 +125,4 @@ Subagent (general-purpose):
   overlap heavily; that is a 5x redundant read of the same diff (and the
   upstream templates forbid it)
 - Paraphrasing the review standard into the dispatch prompt instead of
-  pointing the reviewer at the review skill's original text
+  pointing the reviewer at the code-review skill's original text
