@@ -156,7 +156,7 @@ A report names a symptom. Before you edit, grep every caller of the function you
 ## 大改动 Worktree 隔离
 
 - 新任务满足任一条件时，动手写代码前必须先调起 `nbl.superpowers:using-git-worktrees` skill 建立隔离工作区，禁止直接在当前工作区开发：
-  - 任务需要写实施计划（走 writing-plans 流程）
+  - 任务需要写实施计划（走 to-spec → to-tickets 流程，超大任务走 wayfinder）
   - 预计跨模块或涉及 3+ 文件的新功能
   - 当前工作区有未提交改动，且新任务与这些改动无关
 - 单文件 bugfix、文案修改、配置调整等小改动不在此列，直接在当前工作区进行
