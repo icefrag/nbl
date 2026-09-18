@@ -49,8 +49,7 @@ severity labels (Critical / unprefixed Required / Nit / Optional / FYI) and
 file:line citations.
 
 **Exception: inside SDD, always dispatch.** The coordinator's context is
-reserved for driving the work — this overrides the inline conditions
-(requesting-code-review's rule).
+reserved for driving the work — this overrides the inline conditions.
 
 ## Step 3: Prepare the Review Package Before Dispatching
 
