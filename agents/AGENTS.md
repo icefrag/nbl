@@ -153,14 +153,6 @@ A report names a symptom. Before you edit, grep every caller of the function you
 - 每次 Bash 调用的 cwd 不保证在仓库根（会话/子代理间会重置）：相对路径的复合命令以 `cd /<repo-root> && <命令>` 开头，或直接用绝对路径
 - node 等原生 Windows 程序读不到 Git Bash 的 /tmp（MSYS 虚拟路径展开成 D:\tmp 报 ENOENT）：临时数据文件放工作目录；大输出重定向到文件后再读，不依赖管道直读
 
-## 大改动 Worktree 隔离
-
-- 新任务满足任一条件时，动手写代码前必须先调起 `nbl.superpowers:using-git-worktrees` skill 建立隔离工作区，禁止直接在当前工作区开发：
-  - 任务需要写实施计划（走 to-spec → to-tickets 流程，超大任务走 wayfinder）
-  - 预计跨模块或涉及 3+ 文件的新功能
-  - 当前工作区有未提交改动，且新任务与这些改动无关
-- 单文件 bugfix、文案修改、配置调整等小改动不在此列，直接在当前工作区进行
-
 ---
 
 # 全局开发规范
