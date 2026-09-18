@@ -157,7 +157,7 @@ A report names a symptom. Before you edit, grep every caller of the function you
 
 # 全局开发规范
 
-> 任何 Java 开发（编写/修改/review Java、SQL、XML 代码）或撰写技术设计文档/技术方案之前，必须先调起 `nbl.superpowers:dev-standards` skill，按其路由表加载对应规范文件。
+> 任何 Java 开发（编写/修改/review Java、SQL、XML 代码）或撰写技术设计文档/技术方案之前，必须先调起 `nbl:dev-standards` skill，按其路由表加载对应规范文件。
 
 ## Git工作流
 

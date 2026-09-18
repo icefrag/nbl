@@ -1,3 +1,3 @@
-# nbl.superpowers
+# nbl
 
 AI 江湖，门派层出不穷，取其精华，去其糟粕，自成一派。

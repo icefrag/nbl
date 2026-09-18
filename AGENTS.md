@@ -1,4 +1,4 @@
-# nbl.superpowers
+# nbl
 
 参考项目地址（搬运/同步 skill 时对照的上游源码）：
 
