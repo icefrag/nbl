@@ -1,6 +1,6 @@
 ---
 name: k8s-logs
-description: 排查 guozhi 项目在 K8s 各环境(dev1/dev2/dev3/fat1/uat)服务日志的专属技能。当用户提到查日志/看日志/app.log/error.log/warn.log/request.log、服务报错/接口失败/超时/500/空指针、某环境(dev1~uat)某服务(guozhi-*)出问题、kexi/kubectl 进 pod 看日志、启动失败/Bean 报错/性能慢/耗时高/Full GC/内存溢出等任何线上/测试环境排查诉求时，必须使用本 skill。本 skill 通过 kubectl 直接操作集群抓取并分析日志、给出结论，用户无需再手动与 kexi 交互。
+description: 排查 guozhi 项目在 K8s 各环境(dev1/dev2/dev3/fat1/uat)服务日志与数据库的专属技能。当用户提到查日志/看日志/app.log/error.log/warn.log/request.log、服务报错/接口失败/超时/500/空指针、某环境(dev1~uat)某服务(guozhi-*)出问题、kexi/kubectl 进 pod 看日志、启动失败/Bean 报错/性能慢/耗时高/Full GC/内存溢出等任何线上/测试环境排查诉求时，必须使用本 skill；当用户要查库/查数据/看表结构/字段含义/核对数据是否落库/分析 SQL 报错时也必须使用本 skill——通过环境内 db pod 的 mysql 客户端执行只读 SQL，凭据按环境+服务存于本地配置，表结构从代码 entity 反推；当用户要跨微服务查代码/找某服务的本地仓库/改 db 或 workspace 配置时也必须使用本 skill。本 skill 通过 kubectl 直接操作集群抓取日志与查询数据、给出结论，用户无需再手动与 kexi 交互。
 ---
 
 # K8s 日志排查（guozhi）
@@ -33,9 +33,9 @@ description: 排查 guozhi 项目在 K8s 各环境(dev1/dev2/dev3/fat1/uat)服�
 直接调用本 skill 自带的解析脚本，避免每次手写一堆 grep+判断：
 
 ```bash
-bash ./skills/k8s-logs/scripts/resolve-pod.sh <namespace> <服务关键字>
-# 例:
-bash ./skills/k8s-logs/scripts/resolve-pod.sh guozhi-dev3 common-platform
+bash <本skill目录>/scripts/resolve-pod.sh <namespace> <服务关键字>
+# 例(本skill目录 = 本 SKILL.md 所在目录):
+bash <本skill目录>/scripts/resolve-pod.sh guozhi-dev3 common-platform
 ```
 
 - 脚本把选中的 pod 名打印到 **stdout**，诊断信息打印到 **stderr**。
@@ -124,10 +124,39 @@ kubectl exec -n $NS $POD -- sh -c "grep '\"trace\":\"fd75ebb10a09d443\"' $DIR/lo
 3. **结论**：问题是什么、在哪一行代码/哪个组件、可能原因
 4. **下一步**：建议再查什么文件/关键字、或去代码里看哪段（能给出 `文件:行` 最好）
 
+## 数据库查询（查数据 / 看表结构）
+
+排查中需要核对数据（「这笔单子落库了吗」「这个字段什么含义」「SQL 报字段不存在」）时，用 db-query.sh 查目标环境的 MySQL：
+
+```bash
+bash <本skill目录>/scripts/db-query.sh <env> <服务名> "SELECT ..."
+# 例:
+bash <本skill目录>/scripts/db-query.sh dev2 guozhi-common-platform "SELECT COUNT(*) FROM approval_instance"
+```
+
+- **配置先行**：凭据按「环境默认 + 服务覆写」存于 `~/.zcode/guozhi/config.json` 的 `db` 节点。脚本退出码 3 = 配置缺失，按 `references/db.md` 的首次配置流程向用户收集、写入、`SELECT 1` 验证；不要跳过配置硬查。
+- **配置随时可改**：用户说「改 db 配置/换密码/加个服务的库」，直接按 `references/db.md` 的调整流程改对应条目并验证，不用等首次配置的时机。
+- **默认只读**：脚本只放行 SELECT/SHOW/DESC/EXPLAIN 且单条语句，其余直接拒绝。确需写入（如造测试数据），必须先在对话中获得用户明确同意，再加 `--write` 执行。
+- **表结构从 entity 反推**：先跑 `resolve-repo.sh <服务名>` 定位本地仓库，`@TableName` 定位 entity、字段注释即列语义；实库 `DESC` 兜底。完整规则（含 BaseEntity 公共字段、is_deleted 逻辑删除）读 `references/db.md`。
+
+## 跨服务查代码（workspace 配置）
+
+排查常要跨微服务看代码（traceId 追下游、看 entity 定义、对照接口实现）。用 resolve-repo.sh 把服务名解析成本地仓库路径：
+
+```bash
+bash <本skill目录>/scripts/resolve-repo.sh <服务名或关键字>
+# 例:
+bash <本skill目录>/scripts/resolve-repo.sh guozhi-teaching   # → D:/workspace/guozhi-teaching
+```
+
+- **首次使用**：退出码 3 = 未配置。问用户「guozhi 仓库都放在哪个目录」，写入 `~/.zcode/guozhi/config.json` 的 `_workspace.roots`；个别不按 `guozhi-<服务名>` 命名或放在别的位置的仓库，往 `_workspace.repos` 加显式映射。完整流程读 `references/workspace.md`。
+- **随时调整**：用户说「仓库挪地方了/新 clone 了/目录名不对」，直接改 config.json 的 roots/repos，改完验证即可。
+- **退出码**：0 成功（stdout = 仓库路径，一行）/ 3 未配置或未找到 / 6 多候选歧义（stderr 列候选，交用户选或换更精确名字）。
+
 ## 安全与边界
 
-- 这都是只读查询（tail/grep/cat/ls），对集群无副作用，可放心执行。
-- **绝不要执行任何写操作**（不 rm、不重启、不改配置）。若排查需要重启或改配置，只能给出建议，由用户自己操作。
+- 日志查询都是只读（tail/grep/cat/ls），对集群无副作用，可放心执行；**绝不要执行任何写操作**（不 rm、不重启、不改配置）。若排查需要重启或改配置，只能给出建议，由用户自己操作。
+- 数据库查询默认只读白名单；任何写操作（含 `--write` 逃逸口）必须先拿到用户在对话中的明确同意。db 凭据与 workspace 配置同存 `~/.zcode/guozhi/config.json`，该文件绝不写进任何 git 仓库、文档或对话外产物。
 - 日志可能含敏感信息（token、手机号、内部地址）。这是用户自己内网环境的排查，正常如实展示给用户本人即可；仅当用户要把日志外发时才提醒脱敏。
 - `kubectl exec` 进容器本质是执行命令，保持命令为只读查询。
 
