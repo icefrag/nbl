@@ -143,7 +143,7 @@ uv run --no-project --with pymysql --with cryptography python <本skill目录>/s
 
 ## 跨服务查代码（workspace 配置）
 
-排查常要跨微服务看代码（traceId 追下游、看 entity 定义、对照接口实现）。用 resolve-repo.sh 把服务名解析成本地仓库路径：
+排查常要跨微服务看代码（traceId 追下游、看 entity 定义、对照接口实现）。**查代码一律直接查本地源码仓库，不要去 maven 本地仓库（~/.m2）翻 jar 包**——guozhi 服务的仓库地址已收集在 `_workspace` 配置里，用 resolve-repo.sh 把服务名解析成本地仓库路径：
 
 ```bash
 bash <本skill目录>/scripts/resolve-repo.sh <服务名或关键字>
