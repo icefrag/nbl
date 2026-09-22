@@ -1,6 +1,6 @@
 ---
 name: k8s-logs
-description: 排查 guozhi 项目在 K8s 各环境(dev1/dev2/dev3/fat1/uat)服务日志与数据库的专属技能。当用户提到查日志/看日志/app.log/error.log/warn.log/request.log、服务报错/接口失败/超时/500/空指针、某环境(dev1~uat)某服务(guozhi-*)出问题、kexi/kubectl 进 pod 看日志、启动失败/Bean 报错/性能慢/耗时高/Full GC/内存溢出等任何线上/测试环境排查诉求时，必须使用本 skill；当用户要查库/查数据/看表结构/字段含义/核对数据是否落库/分析 SQL 报错时也必须使用本 skill——通过环境内 db pod 的 mysql 客户端执行只读 SQL，凭据按环境+服务存于本地配置，表结构从代码 entity 反推；当用户要跨微服务查代码/找某服务的本地仓库/改 db 或 workspace 配置时也必须使用本 skill。本 skill 通过 kubectl 直接操作集群抓取日志与查询数据、给出结论，用户无需再手动与 kexi 交互。
+description: 排查 guozhi 项目在 K8s 各环境(dev1/dev2/dev3/fat1/uat)服务日志与数据库的专属技能。当用户提到查日志/看日志/app.log/error.log/warn.log/request.log、服务报错/接口失败/超时/500/空指针、某环境(dev1~uat)某服务(guozhi-*)出问题、kexi/kubectl 进 pod 看日志、启动失败/Bean 报错/性能慢/耗时高/Full GC/内存溢出等任何线上/测试环境排查诉求时，必须使用本 skill；当用户要查库/查数据/看表结构/字段含义/核对数据是否落库/分析 SQL 报错时也必须使用本 skill——通过本地直连（pymysql，账号白名单放行开发机、封禁集群 pod）执行只读 SQL，凭据按环境+服务存于本地配置，表结构从代码 entity 反推；当用户要跨微服务查代码/找某服务的本地仓库/改 db 或 workspace 配置时也必须使用本 skill。本 skill 通过 kubectl 直接操作集群抓取日志与查询数据、给出结论，用户无需再手动与 kexi 交互。
 ---
 
 # K8s 日志排查（guozhi）
@@ -126,18 +126,20 @@ kubectl exec -n $NS $POD -- sh -c "grep '\"trace\":\"fd75ebb10a09d443\"' $DIR/lo
 
 ## 数据库查询（查数据 / 看表结构）
 
-排查中需要核对数据（「这笔单子落库了吗」「这个字段什么含义」「SQL 报字段不存在」）时，用 db-query.sh 查目标环境的 MySQL：
+排查中需要核对数据时，用 db-query.py 查目标环境的 MySQL（**本地直连通道**）：
 
 ```bash
-bash <本skill目录>/scripts/db-query.sh <env> <服务名> "SELECT ..."
+uv run --no-project --with pymysql --with cryptography python <本skill目录>/scripts/db-query.py <env> <服务名> "SELECT ..."
 # 例:
-bash <本skill目录>/scripts/db-query.sh dev2 guozhi-common-platform "SELECT COUNT(*) FROM approval_instance"
+uv run --no-project --with pymysql --with cryptography python <本skill目录>/scripts/db-query.py dev2 guozhi-common-platform "SELECT COUNT(*) FROM approval_instance"
 ```
 
-- **配置先行**：凭据按「环境默认 + 服务覆写」存于 `~/.zcode/guozhi/config.json` 的 `db` 节点。脚本退出码 3 = 配置缺失，按 `references/db.md` 的首次配置流程向用户收集、写入、`SELECT 1` 验证；不要跳过配置硬查。
+- **通道背景（勿回退）**：查询账号有来源 IP 白名单，K8s 集群 pod 来源一律 `ERROR 1045`，`kubectl exec` 借道 db pod 的老通道已废弃；本工具从本机直连，需本机在白名单内（开发机默认在）。
+- **配置先行**：凭据按「环境默认 + 服务覆写」存于 `~/.zcode/guozhi/config.json` 的 `db` 节点。退出码 3 = 配置缺失，按 `references/db.md` 的流程向用户收集、写入、验证；不要跳过配置硬查。
 - **配置随时可改**：用户说「改 db 配置/换密码/加个服务的库」，直接按 `references/db.md` 的调整流程改对应条目并验证，不用等首次配置的时机。
-- **默认只读**：脚本只放行 SELECT/SHOW/DESC/EXPLAIN 且单条语句，其余直接拒绝。确需写入（如造测试数据），必须先在对话中获得用户明确同意，再加 `--write` 执行。
-- **表结构从 entity 反推**：先跑 `resolve-repo.sh <服务名>` 定位本地仓库，`@TableName` 定位 entity、字段注释即列语义；实库 `DESC` 兜底。完整规则（含 BaseEntity 公共字段、is_deleted 逻辑删除）读 `references/db.md`。
+- **默认只读**：只放行 SELECT/SHOW/DESC/EXPLAIN 且单条语句。确需写入必须先获用户明确同意，再加 `--write`。
+- 退出码：0 成功 / 2 用法错误 / 3 配置缺失 / 4 连接失败 / 5 SQL 被拒绝。
+- **表结构从 entity 反推**：先 `resolve-repo.sh <服务名>` 定位仓库，`@TableName` 定位 entity；实库 `DESC` 兜底。详见 `references/db.md`。
 
 ## 跨服务查代码（workspace 配置）
 
