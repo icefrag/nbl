@@ -119,6 +119,11 @@ A report names a symptom. Before you edit, grep every caller of the function you
 - 当 api 模块有变更时，运行 app 模块测试前必须先 `mvn install -pl api`
 - `-pl app -am` 只编译依赖模块但不会 install 到本地仓库，测试 classpath 会使用旧 jar 导致 `NoSuchMethodError`
 
+## 单测执行范围
+
+- 验证只跑与本次改动相关的测试类（新增/修改的测试、明确覆盖改动逻辑的用例），用 `mvn test -Dtest=<TestClass>`（多模块配合 `-pl`）定向执行
+- 禁止动辄全量 `mvn test`：大仓库混有集成测试与失修用例，耗时不可控；全量回归仅在用户明确要求时跑
+
 ## 参数透传
 
 - **禁止**将参数逐层透传给不直接使用它的方法
