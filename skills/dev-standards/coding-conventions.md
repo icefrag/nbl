@@ -91,6 +91,25 @@ default UserEntity selectByIdAndTenantId(Long id, Long tenantId) {
 }
 ```
 
+## 跨租户查询（@SkipTenantSqlCheck）
+
+- 框架 `DangerousTenantSqlInterceptor`（database-starter）运行时拦截所有「表含 `tenant_id` 列、但 WHERE 无 `tenant_id` 条件」的 SELECT，抛 `SqlException: SQL缺少租户过滤条件`（DELETE/UPDATE 不拦）
+- Job/定时任务/后台线程/平台级扫描天然不在租户上下文，属高发场景：查询刻意跨租户时，必须在设计期就给 Mapper 加 `@SkipTenantSqlCheck`，并在 Javadoc 写明跨租户场景与跳过理由，不要等环境报错再补——单测中 Mapper 是 mock 的，不经过拦截器，本地全绿、上环境必炸
+- 注解仅两处生效：
+  - **Mapper 接口类级**：该 Mapper 全部 SELECT 跳过校验。整个 Mapper 均为跨租户查询时用（先例：`ThirdpartySyncFailMapper`、`AccountSyncSourceMapper`）
+  - **抽象方法级**：标在与实际 SQL 一一对应的方法上（XML/`@Select` 定义）。Mapper 内仅个别跨租户查询时用（先例：`AccountMapper`、`ApprovalTaskLogMapper`）
+- **禁止标在 default 方法上——不生效**：拦截器按实际执行的 MappedStatement 方法名（如内部 `selectList`）反射找注解，default 方法永远匹配不到，加了注解运行时照拦不误
+- `@SkipTenantSqlCheck` 路径：`com.guozhi.api.framework.database.annotation.SkipTenantSqlCheck`
+
+```java
+/**
+ * 三方同步失败记录查询(重试 Job 按时间窗跨租户扫描,SQL 不带 tenant_id,跳过租户校验)。
+ */
+@Mapper
+@SkipTenantSqlCheck
+public interface ThirdpartySyncFailMapper extends BaseMapper<ThirdpartySyncFail> {
+```
+
 ## 集合参数查询
 
 - Mapper层`.in()`必须先检查集合是否为空，否则MyBatis-Plus会生成无效SQL
