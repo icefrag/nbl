@@ -14,11 +14,13 @@ fi
 
 # KUBECONFIG 默认导出(环境未设时): 本 skill 的环境(dev1~uat)全在测试系 kubeconfig.
 # Git Bash 下必须用 C:/ 正斜杠 Windows 路径, ~ 或 /c/ 均读不到.
-export KUBECONFIG="${KUBECONFIG:-C:/Users/$USERNAME/.kube/guozhi-test-config}"
+KCFG_DEFAULT="C:/Users/$USERNAME/.kube/guozhi-test-config"
+export KUBECONFIG="${KUBECONFIG:-$KCFG_DEFAULT}"
 
-# 连通性预检: kubectl 连不上集群时, 错误不能被下面的 2>/dev/null 吞掉后伪装成"未找到 pod"
-if ! kubectl get pods -n "$ns" --no-headers >/dev/null 2>&1; then
-  echo "kubectl 连不上集群——大概率 KUBECONFIG 未导出/指错。先执行: export KUBECONFIG=\"C:/Users/$USERNAME/.kube/guozhi-test-config\" (Git Bash 必须用 C:/ 正斜杠路径)" >&2
+# 连通性预检: 用 cluster-info(不依赖 ns, 避免 ns 拼错被误诊成连接问题);
+# 失败时的错误不能被下面的 2>/dev/null 吞掉后伪装成"未找到 pod"
+if ! kubectl cluster-info >/dev/null 2>&1; then
+  echo "kubectl 连不上集群——KUBECONFIG 未导出/指错,或集群/网络不可达。先执行: export KUBECONFIG=\"$KCFG_DEFAULT\" (Git Bash 必须用 C:/ 正斜杠路径);已导出仍失败则是网络/集群问题,别去怀疑服务没部署" >&2
   exit 4
 fi
 
