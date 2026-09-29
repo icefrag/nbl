@@ -60,7 +60,7 @@ bash <本skill目录>/scripts/resolve-pod.sh guozhi-dev3 common-platform
 | 启动失败 | `start.log`（JVM 层） | `error.log` |
 | 不确定/总览 | `error.log`（grep ERROR）+ `app.log`（tail） | — |
 
-**归档与保留**：所有 logback 文件**按小时滚动**为 `archive/<file>.log.<yyyyMMddHH>.gz`，仅保留 **72 小时**（约 3 天）。3 天前的日志本地没有，只能去 ELK——`logstash.log` 的 JSON 格式就是给 ELK 采集用的。查「昨天/某时段」先 `ls archive/` 看有哪些归档小时，再 grep。
+**归档与保留**：所有 logback 文件**按小时滚动**为 `archive/<file>.log.<yyyyMMddHH>.gz`，仅保留 **72 小时**（约 3 天）。3 天前的日志本地没有，只能去 ELK——`logstash.log` 的 JSON 格式就是给 ELK 采集用的。查「昨天/某时段」先 `ls archive/` 看有哪些归档小时，再 zgrep（模板见第 4 节）。
 
 **⚠ request.log 已废弃**：当前 logback 配置里**没有 request appender**，磁盘上残留的 `request.log` 是旧版本遗留、不再写入（实测 mtime 能停在半个月前）。请求日志实际由 `REQUEST-LOGGER` 写入 **app.log + logstash.log**——排查请求别再查 request.log。
 
@@ -78,42 +78,69 @@ bash <本skill目录>/scripts/resolve-pod.sh guozhi-dev3 common-platform
 
 ### 4. 抓日志（命令模板）
 
-**核心原则：非交互。绝不要带 `-it`，绝不要 `tail -f`（不会结束）。** 用 `kubectl exec ... -- sh -c "..."` 把命令一次性传进去。
+**核心原则一：非交互。** 绝不带 `-it`，绝不 `tail -f`（不会结束）。用 `kubectl exec ... -- sh -c "..."` 把命令一次性传进去。
 
-抓之前先想清楚量——`app.log`/`info.log` 可能很大，**绝不能 cat 全量**。先统计命中规模再决定抓多少：
+**核心原则二：轻量。** 命令跑在用户的服务容器里，要防的是**内存 O(n) 的命令、无界输出、永不结束的命令**（CPU/IO 代价的诚实评估见本节末尾）。具体做到：**输出有界**（凡可能多行输出的 grep 一律 `| tail -n` 收口；`grep -c` 输出只有一个数字，免收口）、**内存 O(1)**（只用流式的 ls/tail/grep/zgrep，`head -c` 仅作红线里的逃生口）、**单次线性扫描**（扫完即退，不反复全文件扫）。过滤与裁剪都在 pod 内管道里完成，只把最终几十~几百行经 kubectl 传回——绝不把大块原始日志拉回本地再筛。
+
+**第 0 步永远是先探大小**（O(1)，一条 ls 决定后续策略）：
 
 ```bash
 POD=<脚本返回的 pod>; NS=<ns>; SVC=<服务名>; DIR=/data/log/$SVC
+kubectl exec -n $NS $POD -- sh -c "ls -lh $DIR"
+```
 
+- 几 MB~几十 MB（error/warn/time/start/gc 常态）→ 小文件，直接查；
+- 上百 MB~GB 级（app/info/logstash 高峰常态）→ 走大文件策略，避免反复全文件扫描。
+
+**小文件模板**（直接查，输出仍要收口）：
+
+```bash
 # 1) 先看命中规模（便宜，先跑）
 kubectl exec -n $NS $POD -- sh -c "grep -c 'ERROR' $DIR/error.log"
 
 # 2) 抓尾部最新
 kubectl exec -n $NS $POD -- sh -c "tail -n 300 $DIR/error.log"
 
-# 3) grep 关键字 + 后文上下文（异常栈通常在报错行之后）
-kubectl exec -n $NS $POD -- sh -c "grep -n -A 30 'NullPointerException' $DIR/error.log"
+# 3) grep 关键字 + 后文上下文（异常栈通常在报错行之后）；tail 收口=只看最近几次，要看最早一次换 head
+kubectl exec -n $NS $POD -- sh -c "grep -n -A 30 'NullPointerException' $DIR/error.log | tail -n 120"
 
-# 4) 多关键字 OR / 大小写不敏感
-kubectl exec -n $NS $POD -- sh -c "grep -E -i 'timeout|refused' $DIR/error.log"
-
-# 5) 按时间区间（日志行首是时间戳）
-kubectl exec -n $NS $POD -- sh -c "grep '2026-07-16 1[4-5]:' $DIR/app.log"
-
-# 6) 命中过多时先裁再贴
-kubectl exec -n $NS $POD -- sh -c "grep '关键字' $DIR/app.log | tail -n 50"
-
-# 7) 历史：先看 archive 有哪些天
-kubectl exec -n $NS $POD -- sh -c "ls $DIR/archive/"
-
-# 8) 按 traceId 串全链路（核心排查技能）
-#    纯文本文件: traceId 是行内第6段, 直接 grep (可串 app/error/warn 多个文件)
-kubectl exec -n $NS $POD -- sh -c "grep 'fd75ebb10a09d443' $DIR/app.log"
-#    logstash.log(JSON): 字段名是 trace
-kubectl exec -n $NS $POD -- sh -c "grep '\"trace\":\"fd75ebb10a09d443\"' $DIR/logstash.log"
+# 4) 多关键字 OR / 大小写不敏感；一批关键字合并成一次 grep，别每个词各扫一遍
+kubectl exec -n $NS $POD -- sh -c "grep -E -i 'timeout|refused' $DIR/error.log | tail -n 100"
 ```
 
-如果容器没有 `grep`/`tail`（极少数极简镜像），退化为 `cat` + 在本地用 Bash 工具的 grep 过滤；或换 `busybox` 侧车。guozhi 的镜像目前都带标准 shell 工具。
+**按 traceId 串全链路**（核心排查技能；traceId 唯一，全文件扫一次的成本可接受——但重试风暴下单个 traceId 命中也可能上百行，照常收口）：
+
+```bash
+# 纯文本文件: traceId 是行内第6段, 直接 grep (可串 app/error/warn 多个文件)
+kubectl exec -n $NS $POD -- sh -c "grep 'fd75ebb10a09d443' $DIR/app.log | tail -n 100"
+# logstash.log(JSON): 字段名是 trace
+kubectl exec -n $NS $POD -- sh -c "grep '\"trace\":\"fd75ebb10a09d443\"' $DIR/logstash.log | tail -n 100"
+```
+
+**大文件模板**（app/info/logstash 超百 MB 时）：logback 按时间顺序追加，**越新的日志越靠近文件尾**——查最近的事从尾部裁着扫，查更早的事去 archive 拿对应小时的 gz（单个小得多）：
+
+```bash
+# 5) 只扫尾部 N 行再过滤（N 按日志量估：20 万行约覆盖最近几十分钟到几小时；查最早一次换 head）
+kubectl exec -n $NS $POD -- sh -c "tail -n 200000 $DIR/app.log | grep '关键字' | tail -n 50"
+
+# 6) 时间区间（日志行首是时间戳）：最近的从尾部裁；更早的（昨天/前天）直接查归档
+kubectl exec -n $NS $POD -- sh -c "tail -n 500000 $DIR/app.log | grep '2026-09-29 1[4-5]:' | tail -n 100"
+
+# 7) 归档：先按文件类型过滤出有哪些小时，再 zgrep（流式解压扫描，同样收口）
+kubectl exec -n $NS $POD -- sh -c "ls -lh $DIR/archive/ | grep 'app.log' | tail -n 10"
+kubectl exec -n $NS $POD -- sh -c "zgrep '关键字' $DIR/archive/app.log.2026092910.gz | tail -n 50"
+```
+
+**尾部裁扫没命中 ≠ 没有**（N 不够大——日志量大的服务 20 万行可能只覆盖几分钟；或目标时段在文件更早处、尚未滚入归档）。按顺序兜底：① 加大 N 重扫；② `grep -c` 确认全文件里到底有没有（一次线性扫描，输出 1 个数字）；③ 确认有但被 N 裁掉了，改跑带收口的全文件 grep（`grep '关键字' $DIR/app.log | tail -n 100`）；④ 时段更早则查归档。
+
+**轻量红线**（会冲击 pod 内存或传输量，禁止）：
+
+- `cat` 大文件、`kubectl cp` 拉当前活跃大文件或整个日志目录——输出与传输量不可控。**单个几 MB 的归档 gz 允许 `kubectl cp` 拉回本地分析**（pod 里没有 zgrep 时的兜底）。极简镜像没有 grep/tail 时，也只允许 `head -c 500000 $DIR/xx.log` 裁剪后再传，或换同服务其他副本的 pod（guozhi 镜像都带标准 shell 工具，基本走不到这条）。
+- 可能多行输出的 grep 不带 `| tail`/`| head` 收口——命中万级时输出刷爆传输（`grep -c` 输出仅一个数字，不受此限）。
+- `sort`/`awk`/`uniq -c` 等全量聚合——内存 O(n)，**大文件上**会顶爆 pod 内存；几 MB 的小文件做异常分布统计可以用。
+- `grep -r` 递归整个 /data/log——扫描量不可控，先 `ls` 明确文件再查。
+
+**不必过度保守，但要认清 CPU 代价**：grep/tail 流式扫描、内存 O(1)、扫完即退——会出事的只有上面黑名单（内存 O(n) 的聚合、无界输出、永不结束的命令）。真正的代价在 CPU 和磁盘 IO：pod 的 CPU limit 实测多为 **500m，由 grep 与服务 JVM 共享**，GB 级大文件的全文件扫描会让服务**肉眼可见地被挤占几秒到几十秒**——这正是全文件扫描（含 `grep -c`）只放在兜底链、且要确认时段确在文件内才跑的原因，日常一律尾部裁扫 + 归档单文件。**无 CPU limit 的 pod**（dev3 的 api-gateway/api-main/gateway 系即如此）更没有 cgroup 兜底，打满的核直接与节点所有进程争抢，更要克制。
 
 ### 5. 分析并给出结论
 
@@ -167,7 +194,7 @@ bash <本skill目录>/scripts/resolve-repo.sh guozhi-teaching   # → D:/workspa
 
 ## 安全与边界
 
-- 日志查询都是只读（tail/grep/cat/ls），对集群无副作用，可放心执行；**绝不要执行任何写操作**（不 rm、不重启、不改配置）。若排查需要重启或改配置，只能给出建议，由用户自己操作。
+- 日志查询都是只读（ls/tail/grep/zgrep），且一律按第 4 节轻量模板执行——输出有界、内存 O(1)，对 pod 的 CPU/内存无冲击，可放心执行；**绝不要执行任何写操作**（不 rm、不重启、不改配置）。若排查需要重启或改配置，只能给出建议，由用户自己操作。
 - 数据库查询默认只读白名单；任何写操作（含 `--write` 逃逸口）必须先拿到用户在对话中的明确同意。db 凭据与 workspace 配置同存 `~/.zcode/guozhi/config.json`，该文件绝不写进任何 git 仓库、文档或对话外产物。
 - 日志可能含敏感信息（token、手机号、内部地址）。这是用户自己内网环境的排查，正常如实展示给用户本人即可；仅当用户要把日志外发时才提醒脱敏。
 - `kubectl exec` 进容器本质是执行命令，保持命令为只读查询。
