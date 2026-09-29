@@ -9,11 +9,38 @@ description: 排查 guozhi 项目在 K8s 各环境(dev1/dev2/dev3/fat1/uat)服�
 
 用户本地有个 `kexi` 交互命令（在 PowerShell profile 里），本质是 `kubectl exec -it <pod> -n <ns> -- sh` 的菜单式封装——那个「选环境→选服务」的菜单只是辅助选 namespace 和 pod 名。
 
-**你不需要、也不应该去模拟那个交互式菜单（驱动 TTY 交互极脆弱）。** Claude Code 的 Bash 工具能直接调 `kubectl`（kubeconfig 已就绪、context 指向目标 ACK 集群），把 namespace 和 pod 当参数传进去，一条非交互命令就能把日志捞出来。
+**你不需要、也不应该去模拟那个交互式菜单（驱动 TTY 交互极脆弱）。** Claude Code 的 Bash 工具能直接调 `kubectl`（**kubeconfig 不是默认就绪的，必须先按工作流第 0 步导出 KUBECONFIG**），把 namespace 和 pod 当参数传进去，一条非交互命令就能把日志捞出来。
 
 所以你的角色：用户用自然语言描述「哪个环境、哪个服务、什么问题」→ 你翻译成精确的 kubectl 日志查询 → 抓取 → 分析 → 给出结论。
 
 ## 工作流
+
+### 0. KUBECONFIG 前置（所有 kubectl 命令的地基）
+
+本机默认 `~/.kube/config` **不存在**，kubeconfig 是按集群拆分的两个文件，必须先导出 KUBECONFIG 才能用 kubectl（否则它会去连 localhost:8080 并失败）：
+
+| 文件 | 覆盖环境 |
+|------|---------|
+| `C:/Users/icefr/.kube/guozhi-test-config` | dev1/dev2/dev3/fat1/uat（本 skill 全部场景） |
+| `C:/Users/icefr/.kube/guozhi-prod-config` | 生产（本 skill 不碰） |
+
+导出写法有 Git Bash 专属坑——**只能用 `C:/` 正斜杠 Windows 路径**：
+
+```bash
+export KUBECONFIG="C:/Users/icefr/.kube/guozhi-test-config"   # ✅ 唯一正确
+# ❌ ~ 会展开成 /c/Users/...(MSYS 路径)，Windows 原生 kubectl 读不到
+# ❌ /c/Users/... 同上
+```
+
+**ZCode 的 Bash 每次调用都重置环境变量**——export 只在当条命令内有效。后续每条含 kubectl 的调用都要重新 export（或用 `KUBECONFIG=... kubectl ...` 前缀），不能 export 一次就裸跑后面的命令。
+
+导出后先自检连通再开始查（防止管道吞掉 stderr，把「连不上」误判成「无匹配 pod」）：
+
+```bash
+export KUBECONFIG="C:/Users/icefr/.kube/guozhi-test-config" && kubectl cluster-info >/dev/null 2>&1 || echo "KUBECONFIG 未配置或不可达"
+```
+
+**症状速查（见到这些，别怀疑环境/服务不存在）**：`current-context is not set`、`dial tcp [::1]:8080 ... refused`、`kubectl get pods ... | grep` 结果为空但看不到报错（stderr 被管道吞了）——全是 KUBECONFIG 未导出/指错，按上面导出后重试。
 
 ### 1. 解析「环境 + 服务 + 问题」
 
@@ -39,6 +66,7 @@ bash <本skill目录>/scripts/resolve-pod.sh guozhi-dev3 common-platform
 ```
 
 - 脚本把选中的 pod 名打印到 **stdout**，诊断信息打印到 **stderr**。
+- 脚本内部已默认导出 KUBECONFIG（指向 guozhi-test-config，环境里已设置则不覆盖），无需你在调用前手动 export；连接失败时退出码 4 并提示导出方法，此时按第 0 步处理，**不要**去怀疑服务没部署。
 - **关键约定（用户明确要求）**：若该服务存在多个副本，说明**服务正在滚动发布中**。脚本会在 stderr 告警 `⚠ 检测到多副本(疑似滚动发布中)`。此时你应当：
   1. 告诉用户「服务正在发布（已有 N 个副本），日志可能不全」；
   2. 优先查已经 `Running` 的那个旧副本（脚本会自动选）；
@@ -85,7 +113,7 @@ bash <本skill目录>/scripts/resolve-pod.sh guozhi-dev3 common-platform
 **第 0 步永远是先探大小**（O(1)，一条 ls 决定后续策略）：
 
 ```bash
-POD=<脚本返回的 pod>; NS=<ns>; SVC=<服务名>; DIR=/data/log/$SVC
+export KUBECONFIG="C:/Users/icefr/.kube/guozhi-test-config"; POD=<脚本返回的 pod>; NS=<ns>; SVC=<服务名>; DIR=/data/log/$SVC
 kubectl exec -n $NS $POD -- sh -c "ls -lh $DIR"
 ```
 

@@ -12,6 +12,16 @@ if [ -z "$ns" ] || [ -z "$svc" ]; then
   exit 2
 fi
 
+# KUBECONFIG 默认导出(环境未设时): 本 skill 的环境(dev1~uat)全在测试系 kubeconfig.
+# Git Bash 下必须用 C:/ 正斜杠 Windows 路径, ~ 或 /c/ 均读不到.
+export KUBECONFIG="${KUBECONFIG:-C:/Users/$USERNAME/.kube/guozhi-test-config}"
+
+# 连通性预检: kubectl 连不上集群时, 错误不能被下面的 2>/dev/null 吞掉后伪装成"未找到 pod"
+if ! kubectl get pods -n "$ns" --no-headers >/dev/null 2>&1; then
+  echo "kubectl 连不上集群——大概率 KUBECONFIG 未导出/指错。先执行: export KUBECONFIG=\"C:/Users/$USERNAME/.kube/guozhi-test-config\" (Git Bash 必须用 C:/ 正斜杠路径)" >&2
+  exit 4
+fi
+
 # 取该 namespace 下所有 pod (NAME READY STATUS RESTARTS AGE), 模糊匹配服务名
 mapfile -t lines < <(kubectl get pods -n "$ns" --no-headers 2>/dev/null | grep -i "$svc")
 if [ ${#lines[@]} -eq 0 ]; then
