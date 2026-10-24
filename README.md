@@ -2,7 +2,7 @@
 
 AI 江湖，门派层出不穷，取其精华，去其糟粕，自成一派。
 
-本仓库只保留 6 个 skill：**4 个自研 + 2 个原样搬运自 superpowers**。其余第三方 skill/插件直接从原始来源安装（skill 用 `npx skills`，Claude 官方插件用 `claude plugin`），不在本仓做镜像同步——上游更新直接 `npx skills update` 就能拿到，仓库不再背同步的债。
+本仓库只保留 6 个 skill：**4 个自研 + 2 个原样搬运自 superpowers**。其余第三方 skill 一律用 `npx` 从原始来源安装，不在本仓做镜像同步——上游更新直接 `npx skills update` 就能拿到，仓库不再背同步的债。
 
 ## 目录
 
@@ -10,7 +10,6 @@ AI 江湖，门派层出不穷，取其精华，去其糟粕，自成一派。
 - [常用 skill 安装命令](#常用-skill-安装命令)
   - [mattpocock/skills（工程主力，26 个）](#mattpocockskills工程主力26-个)
   - [其他第三方（4 个）](#其他第三方4-个)
-  - [Claude 官方插件（2 个）](#claude-官方插件2-个)
   - [本仓库 icefrag/nbl（6 个）](#本仓库-icefragnbl6-个)
 - [更新与卸载](#更新与卸载)
 - [安装位置说明](#安装位置说明)
@@ -22,7 +21,7 @@ AI 江湖，门派层出不穷，取其精华，去其糟粕，自成一派。
 | `dev-standards` | 自研 | Java 后端开发规范路由表，写/改/review Java 前必读 |
 | `deploy` | 自研 | 部署流程（jkd 直部署） |
 | `k8s-logs` | 自研 | guozhi 项目 K8s 日志排查 + 数据库只读查询 |
-| `code-simplifier` | 自研 | 代码简化重构（保持功能不变） |
+| `code-simplifier` | 自研（改写自 Claude 官方插件） | 代码简化重构（保持功能不变） |
 | `using-git-worktrees` | superpowers 搬运 | 大改动隔离工作区（git worktree） |
 | `verification-before-completion` | superpowers 搬运 | 宣称完成前必须跑验证命令 |
 
@@ -84,25 +83,6 @@ npx skills@latest add alibaba/open-code-review -a zcode claude-code -g -s open-c
 # find-skills：在 skills 生态里搜技能
 npx skills@latest add vercel-labs/skills -a zcode claude-code -g -s find-skills -y
 ```
-
-### Claude 官方插件（2 个）
-
-来自 [anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official)（Claude Code 内置市场，自动更新）。这两个是**插件**格式（斜杠命令 / 子代理），不是 `SKILL.md`，`npx skills` 装不了，用 `claude plugin` 装：
-
-```bash
-# code-review：GitHub PR 评审命令（gh pr，5 个子代理并行 + 置信度评分）
-claude plugin install code-review@claude-plugins-official
-
-# code-simplifier：代码简化子代理（model: opus）
-claude plugin install code-simplifier@claude-plugins-official
-```
-
-与前文两个同名 skill 的关系（同名，别同时装两版，入口会撞）：
-
-- `code-review`：mattpocock 版是双轴（Standards/Spec）分支评审 skill；官方插件版是针对 GitHub PR 的评审命令，按场景二选一
-- `code-simplifier`：本仓 `skills/code-simplifier` 就是由官方插件的 agent 提示词改写适配而来（CLAUDE.md → AGENTS.md + dev-standards），功能同源，装官方版或用本仓版二选一
-
-ZCode 也能消费该市场（本机 frontend-design 插件即来自 claude-plugins-official）。
 
 ### 本仓库 icefrag/nbl（6 个）
 
