@@ -1,44 +1,34 @@
 # nbl
 
-AI 江湖，门派层出不穷，取其精华，去其糟粕，自成一派。
+> AI 江湖，门派层出不穷，取其精华，去其糟粕，自成一派。
 
-本仓库只保留 6 个 skill：**4 个自研 + 2 个原样搬运自 superpowers**。其余第三方 skill 一律用 `npx` 从原始来源安装，不在本仓做镜像同步——上游更新直接 `npx skills update` 就能拿到，仓库不再背同步的债。
+个人 skill 仓库：本仓只收录 6 个 skill（4 自研 + 2 搬运自 superpowers），第三方一律用 `npx` 从原始来源安装、不做镜像同步，上游更新一句 `npx skills update` 搞定。
 
-## 目录
-
-- [本仓库维护的 skill](#本仓库维护的-skill)
-- [常用 skill 安装命令](#常用-skill-安装命令)
-  - [mattpocock/skills（工程主力，26 个）](#mattpocockskills工程主力26-个)
-  - [其他第三方（4 个）](#其他第三方4-个)
-  - [本仓库 icefrag/nbl（6 个）](#本仓库-icefragnbl6-个)
-- [更新与卸载](#更新与卸载)
-- [安装位置说明](#安装位置说明)
-
-## 本仓库维护的 skill
+## 本仓 skill
 
 | skill | 来源 | 用途 |
 |---|---|---|
 | `dev-standards` | 自研 | Java 后端开发规范路由表，写/改/review Java 前必读 |
 | `deploy` | 自研 | 部署流程（jkd 直部署） |
 | `k8s-logs` | 自研 | guozhi 项目 K8s 日志排查 + 数据库只读查询 |
-| `code-simplifier` | 自研（改写自 Claude 官方插件） | 代码简化重构（保持功能不变） |
-| `using-git-worktrees` | superpowers 搬运 | 大改动隔离工作区（git worktree） |
-| `verification-before-completion` | superpowers 搬运 | 宣称完成前必须跑验证命令 |
+| `code-simplifier` | 自研（改写自 Claude 官方插件） | 代码简化重构，功能不变 |
+| `using-git-worktrees` | superpowers 搬运 | 大改动隔离工作区 |
+| `verification-before-completion` | superpowers 搬运 | 宣称完成前必须先跑验证 |
 
-## 常用 skill 安装命令
+---
 
-前置：`node` 可用。安装器把 skill 存到 `~/.agents/skills`，再分发到各 agent 的 skills 目录（`~/.zcode/skills`、`~/.claude/skills`）。
+## 安装 skill
 
-命令中：
+统一用 [vercel-labs/skills](https://github.com/vercel-labs/skills) 安装器（需 Node ≥ 22）：skill 存入 `~/.agents/skills`，再分发到各 agent 目录。常用参数：
 
-- `-a zcode claude-code`：装到 ZCode 和 Claude Code 两个 agent（只用一个就删掉另一个）
-- `-g`：全局安装（所有项目可用）；去掉 `-g` 则装到当前项目
-- `-s`：指定 skill 名，可一次列多个；不写则交互式选择
-- `-y`：跳过确认
+| 参数 | 含义 |
+|---|---|
+| `-a zcode claude-code` | 装到哪些 agent，按需删减 |
+| `-g` | 全局安装；省略则装到当前项目 |
+| `-s <name...>` | 指定 skill，可列多个；省略则交互选择 |
+| `-y` | 跳过确认 |
 
-### mattpocock/skills（工程主力，26 个）
-
-一次性装齐：
+### mattpocock/skills（26 个，工程主力）
 
 ```bash
 npx skills@latest add mattpocock/skills -a zcode claude-code -g -y \
@@ -49,44 +39,33 @@ npx skills@latest add mattpocock/skills -a zcode claude-code -g -y \
      triage wait-what wayfinder wizard writing-for-agents
 ```
 
-单个补装（把 `tdd` 换成任意 skill 名）：
+补装单个（`<name>` 换成 skill 名）：
 
 ```bash
-npx skills@latest add mattpocock/skills -a zcode claude-code -g -s tdd -y
+npx skills@latest add mattpocock/skills -a zcode claude-code -g -s <name> -y
 ```
 
-按用途分组，方便挑：
-
-| 分组 | skill |
+| 用途 | skill |
 |---|---|
-| 需求到交付 | `to-spec` `to-tickets` `implement` `implement-spec` `prototype` `research` |
-| 质量把关 | `code-review` `tdd` `diagnosing-bugs` `verification-before-completion`（见本仓） |
-| 思考与打磨 | `grill-me` `grill-with-docs` `grilling` `to-questionnaire` `wayfinder` `wait-what` |
-| 领域与架构 | `domain-modeling` `codebase-design` `improve-codebase-architecture` |
-| 协作收尾 | `handoff` `teach` `retro` `triage` `wizard` `writing-for-agents` |
-| 入口/初始化 | `ask-matt`（路由器，先看它选谁） `setup-matt-pocock-skills`（每个仓库跑一次） |
+| 需求 → 交付 | to-spec · to-tickets · implement · implement-spec · prototype · research |
+| 质量把关 | code-review · tdd · diagnosing-bugs |
+| 思考打磨 | grill-me · grill-with-docs · grilling · to-questionnaire · wayfinder · wait-what |
+| 领域与架构 | domain-modeling · codebase-design · improve-codebase-architecture |
+| 协作收尾 | handoff · teach · retro · triage · wizard · writing-for-agents |
+| 入口 | ask-matt · setup-matt-pocock-skills |
 
-> `setup-matt-pocock-skills` 装完要在目标仓库里跑一次，配置 issue tracker、triage 标签和文档目录。
+> `ask-matt` 是这套 skill 的路由器；`setup-matt-pocock-skills` 需在目标仓库跑一次（配置 issue tracker、triage 标签、文档目录）。
 
 ### 其他第三方（4 个）
 
 ```bash
-# i-have-adhd：ADHD 友好的输出格式（/i-have-adhd 开启，会话内持续生效）
-npx skills@latest add ayghri/i-have-adhd -a zcode claude-code -g -s i-have-adhd -y
-
-# humanizer-zh：去 AI 味的中文改写
-npx skills@latest add op7418/Humanizer-zh -a zcode claude-code -g -s humanizer-zh -y
-
-# open-code-review：阿里开源的代码评审
-npx skills@latest add alibaba/open-code-review -a zcode claude-code -g -s open-code-review -y
-
-# find-skills：在 skills 生态里搜技能
-npx skills@latest add vercel-labs/skills -a zcode claude-code -g -s find-skills -y
+npx skills@latest add ayghri/i-have-adhd       -a zcode claude-code -g -s i-have-adhd -y       # ADHD 友好输出
+npx skills@latest add op7418/Humanizer-zh      -a zcode claude-code -g -s humanizer-zh -y      # 去 AI 味中文改写
+npx skills@latest add alibaba/open-code-review -a zcode claude-code -g -s open-code-review -y  # 阿里开源代码评审
+npx skills@latest add vercel-labs/skills       -a zcode claude-code -g -s find-skills -y       # 生态内搜技能
 ```
 
-### 本仓库 icefrag/nbl（6 个）
-
-本仓这 6 个装法同上，源换成本仓：
+### 本仓（icefrag/nbl，6 个）
 
 ```bash
 npx skills@latest add icefrag/nbl -a zcode claude-code -g -y \
@@ -94,23 +73,23 @@ npx skills@latest add icefrag/nbl -a zcode claude-code -g -y \
      using-git-worktrees verification-before-completion
 ```
 
+### 存放位置
+
+| 位置 | 说明 |
+|---|---|
+| `~/.agents/skills/` | 技能实体，`update` 的更新对象 |
+| `~/.zcode/skills/`、`~/.claude/skills/` | 各 agent 读取处 |
+
+Windows 上软链失败会自动降级为复制安装（`--copy` 可强制），两种模式下 `update` 均能同步上游改动。
+
+---
+
 ## 更新与卸载
 
 ```bash
-npx skills@latest update           # 更新所有已装 skill（上游改动直接生效）
-npx skills@latest list             # 看当前装了什么
-npx skills@latest remove -s <name> -g # 卸载单个（全局安装对应 -g）
+npx skills@latest update                # 全部更新
+npx skills@latest list                  # 查看已装
+npx skills@latest remove -s <name> -g   # 卸载单个（全局安装带 -g）
 ```
 
-## 安装位置说明
-
-| 路径 | 内容 |
-|---|---|
-| `~/.agents/skills/<name>` | 技能实体（安装器维护的规范副本，`update` 更新的就是它） |
-| `~/.zcode/skills/<name>` | ZCode 读这里 |
-| `~/.claude/skills/<name>` | Claude Code 读这里 |
-| `~/.zcode/skills/bash` `caveman` `megacave` `ultracave` | ZCode 自带/手动安装，不走 npx |
-
-安装器默认软链到 agent 目录；Windows 上软链建不出来时会自动降级为复制安装（`--copy` 可强制复制）。两种模式下 `npx skills update` 都能把上游改动同步过来。
-
-每个 skill 的来源仓库和哈希记录在 `~/.agents/.skill-lock.json`，可用 `npx skills list` 看当前状态。
+每个 skill 的来源仓库与哈希记录在 `~/.agents/.skill-lock.json`。
