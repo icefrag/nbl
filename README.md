@@ -6,14 +6,11 @@
 
 ## 第三方常用 skill
 
+> 命令均为单行，PowerShell / cmd / bash 通用。注意：省略 `-s` 会装下仓库内**全部** skill（上游共 38 个，含 pr 和各 in-progress 件），务必保留 `-s`。
+
 ```bash
 # mattpocock/skills —— 工程主力 26 个
-npx skills@latest add mattpocock/skills -a zcode claude-code -g -y \
-  -s ask-matt code-review codebase-design diagnosing-bugs domain-modeling \
-     grill-me grill-with-docs grilling handoff implement implement-spec \
-     improve-codebase-architecture prototype research retro \
-     setup-matt-pocock-skills tdd teach to-questionnaire to-spec to-tickets \
-     triage wait-what wayfinder wizard writing-for-agents
+npx skills@latest add mattpocock/skills -a zcode claude-code -g -y -s ask-matt code-review codebase-design diagnosing-bugs domain-modeling grill-me grill-with-docs grilling handoff implement implement-spec improve-codebase-architecture prototype research retro setup-matt-pocock-skills tdd teach to-questionnaire to-spec to-tickets triage wait-what wayfinder wizard writing-for-agents
 
 npx skills@latest add ayghri/i-have-adhd       -a zcode claude-code -g -s i-have-adhd -y
 npx skills@latest add op7418/Humanizer-zh      -a zcode claude-code -g -s humanizer-zh -y
