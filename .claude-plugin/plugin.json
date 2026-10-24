@@ -1,5 +1,5 @@
 {
   "name": "nbl",
-  "description": "Development marketplace for Superpowers core skills library",
-  "version": "8.3.25"
+  "description": "自研 skill（dev-standards、deploy、k8s-logs 等）+ superpowers 搬运件；第三方 skill 用 npx 从原始来源安装",
+  "version": "8.4.0"
 }

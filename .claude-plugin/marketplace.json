@@ -1,7 +1,7 @@
 {
   "name": "nbl",
-  "description": "Development marketplace for Superpowers core skills library",
-  "version": "8.3.5",
+  "description": "本仓 skill 插件市场；第三方 skill 用 npx 从原始来源安装",
+  "version": "8.4.0",
   "owner": {
     "name": "wurui",
     "email": "icefrag@126.com"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "nbl",
-      "description": "Core skills library for Claude Code: TDD, debugging, collaboration patterns, and proven techniques",
+      "description": "本仓维护的 skill：自研 dev-standards/deploy/k8s-logs/code-simplifier + superpowers 搬运 using-git-worktrees/verification-before-completion",
       "source": "./"
     }
   ]
