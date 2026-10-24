@@ -24,9 +24,7 @@ npx skills@latest add vercel-labs/skills       -a zcode claude-code -g -s find-s
 ## 本仓 skill
 
 ```bash
-npx skills@latest add icefrag/nbl -a zcode claude-code -g -y \
-  -s code-simplifier deploy dev-standards k8s-logs \
-     using-git-worktrees verification-before-completion
+npx skills@latest add icefrag/nbl -a zcode claude-code -g -y
 ```
 
 ## 补装单个
@@ -42,5 +40,3 @@ npx skills@latest update                # 全部更新
 npx skills@latest list                  # 查看已装
 npx skills@latest remove -s <name> -g   # 卸载单个
 ```
-
-> `setup-matt-pocock-skills` 每个仓库跑一次；`ask-matt` 是这 26 个 skill 的路由器。
