@@ -1,7 +1,7 @@
 {
   "name": "nbl",
   "description": "本仓 skill 插件市场；第三方 skill 用 npx 从原始来源安装",
-  "version": "8.4.0",
+  "version": "8.4.1",
   "owner": {
     "name": "wurui",
     "email": "icefrag@126.com"
